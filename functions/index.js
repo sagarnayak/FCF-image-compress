@@ -40,17 +40,17 @@ exports.compressImage = functions.storage.object()
             )
                 .then(
                     () => {
-                        console.log('deleting the file')
-                        const file = destBucket.file(filePath)
-                        return file.delete()
-                    }
-                )
-                .then(
-                    () => {
                         console.log('going to compress the file')
                         return sharp(tempfilePath)
                             .resize(500)
                             .toFile(editedfilePath)
+                    }
+                )
+                .then(
+                    () => {
+                        console.log('deleting the file')
+                        const file = destBucket.file(filePath)
+                        return file.delete()
                     }
                 )
                 .then(
