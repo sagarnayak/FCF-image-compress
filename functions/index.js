@@ -5,13 +5,18 @@ const os = require('os')
 const path = require('path')
 const sharp = require('sharp')
 
+const admin = require('firebase-admin')
+admin.initializeApp()
+const storage = admin.storage()
+storage.bucket()
+
 exports.compressImage = functions.storage.object()
     .onFinalize(
         async (object) => {
             console.log(object)
             const bucket = object.bucket
             const filePath = object.name
-            const destBucket = gcs.bucket(bucket)
+            const destBucket = storage.bucket(bucket)
             const tempfilePath = path.join(os.tmpdir(), 'toedit' + path.basename(filePath))
             const editedfilePath = path.join(os.tmpdir(), path.basename(filePath))
             const metadata = {
@@ -25,14 +30,14 @@ exports.compressImage = functions.storage.object()
                 if (
                     object.metadata.edited === 'yes'
                 ) {
-                    console.log('already done, going to skip')
+                    console.log('already done, going to skip ' + filePath)
                     return
                 }
             } catch (err) {
-                console.log('could not find the edited property. going to edit the image')
+                console.log('could not find the edited property. going to edit the image' + filePath)
             }
 
-            console.log('downloading the file')
+            console.log('downloading the file to ' + tempfilePath)
             destBucket.file(filePath).download(
                 {
                     destination: tempfilePath
@@ -40,7 +45,7 @@ exports.compressImage = functions.storage.object()
             )
                 .then(
                     () => {
-                        console.log('going to compress the file')
+                        console.log('going to compress the file' + filePath)
                         return sharp(tempfilePath)
                             .resize(500)
                             .toFile(editedfilePath)
@@ -48,14 +53,16 @@ exports.compressImage = functions.storage.object()
                 )
                 .then(
                     () => {
-                        console.log('deleting the file')
+                        console.log('---- compressed the file ----')
+                        console.log(editedfilePath)
+                        console.log('deleting the file' + tempfilePath)
                         const file = destBucket.file(filePath)
                         return file.delete()
                     }
                 )
                 .then(
                     () => {
-                        console.log('going to upload the compressed file')
+                        console.log('going to upload the compressed file' + editedfilePath)
                         return destBucket.upload(
                             editedfilePath,
                             {
@@ -66,7 +73,8 @@ exports.compressImage = functions.storage.object()
                     }
                 )
                 .then(
-                    () => {
+                    (result) => {
+                        console.log('---- result ---- ' + result)
                         return console.log('---- done ----')
                     }
                 )
